@@ -2,7 +2,7 @@
   "name": "@turystack/react-i18n",
   "description": "Typed translations for React, on any platform: a Provider, hooks, and define* helpers with no DOM and no runtime parser.",
   "private": false,
-  "version": "1.0.2",
+  "version": "1.0.3",
   "type": "module",
   "packageManager": "pnpm@10.12.3",
   "sideEffects": false,
