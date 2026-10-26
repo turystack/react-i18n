@@ -1,16 +1,11 @@
-import type { DeepPartial, TranslationTree } from '../types.js'
-
 function isTree(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
 /**
- * The recursion, untyped on purpose.
- *
- * `DeepPartial<T>` cannot describe its own sub-trees to the compiler without a
- * cast at every level, and a cast per level is a cast nobody reads. One cast at
- * the boundary below, where the shape is actually known, is the honest place to
- * put it.
+ * The recursion, untyped on purpose: a partial tree cannot describe its own
+ * sub-trees to the compiler without a cast at every level. One cast at the
+ * boundary below, where the shape is actually known, is the honest place.
  */
 function overlay(
   base: Record<string, unknown>,
@@ -36,11 +31,8 @@ function overlay(
   return merged
 }
 
-/** Overlays a partial dictionary on a complete one, group by group. */
-export function mergeTrees<T extends TranslationTree>(
-  base: T,
-  overrides: DeepPartial<T> | undefined,
-): T {
+/** Overlays a partial tree on a complete one, group by group. */
+export function mergeTrees<T extends object>(base: T, overrides?: object): T {
   if (!overrides) {
     return base
   }

@@ -1,118 +1,72 @@
 # @turystack/react-i18n
 
-Typed translations for React, on any platform. A Provider, hooks, and `define*`
-helpers — no DOM, no runtime parser, no codegen step.
+The UI labels of `@turystack/react-web` — the words its components render on
+their own — in `en`, `pt-br` and `es`, and the Provider that serves them in the
+app's locale.
+
+The app's own copy is not here: it comes from use-intl, and this package
+follows the locale use-intl's `IntlProvider` holds.
 
 ```bash
-pnpm add @turystack/react-i18n
+pnpm add @turystack/react-i18n @turystack/i18n use-intl
 ```
-
-## The base dictionary
-
-Its shape becomes the contract every other locale is checked against.
-
-```ts
-export const en = defineTranslations({
-  cart: {
-    empty: 'Your cart is empty',
-    items: (count: number) => `${count} items`,
-  },
-  common: { save: 'Save' },
-})
-
-export type AppTranslations = typeof en
-```
-
-Interpolation is a function call, not a `{name}` placeholder: the compiler
-checks arity and argument types, and nothing is parsed at runtime. Annotate the
-parameters **here only** — every other locale inherits them.
-
-## The other locales
-
-```ts
-export const ptBR = defineLocale<AppTranslations>({
-  cart: {
-    empty: 'Seu carrinho está vazio',
-    items: (count) => `${count} itens`, // `count` is already number
-  },
-  common: { save: 'Salvar' },
-})
-
-// Still being translated. What is missing reads through to base.
-export const es = definePartialLocale<AppTranslations>({
-  common: { save: 'Guardar' },
-})
-```
-
-A missing key, an invented key, or a wrong parameter type fails at the locale
-file, not three imports away.
 
 ## Wiring
 
-```ts
-export const { I18nProvider, useI18n, useTranslations, useLocale, useUiLabels } =
-  defineI18n({
-    base: 'en',
-    locales: {
-      en,                                 // bundled — the base must be
-      'pt-br': ptBR,                      // bundled
-      es: () => import('./es'),           // fetched on first use
-    },
-  })
-```
-
-The hooks come back already typed by the locales you passed. Nothing to
-`declare module`, and two apps in one process never share state.
+`IntlProvider` owns the locale. `I18nProvider` reads it with use-intl's
+`useLocale()`, so it takes no `locale` prop and must sit inside `IntlProvider`.
 
 ```tsx
-const { t, locale, locales, setLocale, loading } = useI18n()
+import { I18nProvider, useUiLabels } from '@turystack/react-i18n'
+import { TuryProvider } from '@turystack/react-web'
+import { IntlProvider } from 'use-intl'
 
-t.cart.items(3)
+export function Ui({ locale, messages, timeZone, children }: UiProps) {
+  return (
+    <IntlProvider locale={locale} messages={messages} timeZone={timeZone}>
+      <I18nProvider>
+        <Labels>{children}</Labels>
+      </I18nProvider>
+    </IntlProvider>
+  )
+}
+
+function Labels({ children }: { children: React.ReactNode }) {
+  return <TuryProvider labels={useUiLabels()}>{children}</TuryProvider>
+}
 ```
 
-While a fetched locale is in flight, `t` serves the base and `loading` is true.
-
-## Persistence
-
-The package writes to no storage. `localStorage` does not exist under React
-Native and `AsyncStorage` is a promise; swallowing that difference would mean a
-hydration state only one platform can enter.
-
-```tsx
-// controlled — your router or store owns the locale
-<I18nProvider locale={locale} onLocaleChange={setLocale} />
-
-// uncontrolled — you read storage once, before mount
-<I18nProvider defaultLocale={stored ?? 'en'} onLocaleChange={persist} />
-```
-
-## UI labels
-
-The strings `@turystack/react-web` and `@turystack/react-mobile` render on their
-own live here, translated, on a channel of their own — never mixed into your
-`t`.
-
-```tsx
-<TuryProvider labels={useUiLabels()} />
-```
-
-`en`, `pt-br` and `es` ship translated. Declare a locale outside that set and
-the type asks you for its labels rather than quietly serving English.
+`IntlProvider` is controlled: switching is the app's own state. Load the next
+locale's messages, then set both; the copy and the labels move together.
 
 ```ts
-defineI18n({
-  base: 'en',
-  locales: { en, 'pt-br': ptBR },
-  ui: {
-    'pt-br': defineUiLabels(uiLabels['pt-br'], {
-      editableText: { save: 'Gravar' },   // neighbours in the group survive
-    }),
-  },
-})
+const next = await loadMessages('pt-br')
+setIntl({ locale: 'pt-br', messages: next })
 ```
+
+## Labels
+
+A region resolves to its language: `pt-BR` and `pt-PT` get `pt-br`, `es-MX`
+gets `es`. A locale whose language is not shipped makes `labels` required, so
+its readers are never served English silently. The check reads the `Locale`
+the app registers in use-intl's `AppConfig` (`declare module 'use-intl/core'`);
+without it the locale is a plain `string` and nothing is required.
+
+```tsx
+// Module scope: an inline object is a new set on every render.
+const labels = {
+  'pt-br': defineUiLabels(uiLabels['pt-br'], {
+    editableText: { save: 'Gravar' }, // neighbours in the group survive
+  }),
+}
+
+<I18nProvider labels={labels} />
+```
+
+For the active locale itself, use use-intl's `useLocale()`.
 
 ## Platform
 
-`src/` is compiled with `lib: ["ES2022"]` and no DOM, so `pnpm build` fails on a
-stray `window` or `localStorage` rather than a React Native app discovering it
-at runtime.
+Nothing here needs the DOM, so `src/` is built with `lib: ["ES2022"]` and no
+DOM types: a stray `window` or `localStorage` fails `pnpm build` instead of
+breaking a test or a server render that imports the package.
