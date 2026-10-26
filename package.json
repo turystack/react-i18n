@@ -2,7 +2,7 @@
   "name": "@turystack/react-i18n",
   "description": "UI labels for @turystack/react-web in en, pt-br and es, and the Provider that serves them in the locale of a use-intl app.",
   "private": false,
-  "version": "1.0.3",
+  "version": "1.1.0",
   "type": "module",
   "packageManager": "pnpm@10.12.3",
   "sideEffects": false,
